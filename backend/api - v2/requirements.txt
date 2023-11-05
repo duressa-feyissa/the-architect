@@ -1,0 +1,13 @@
+FastAPI
+pydantic
+typing
+openai
+SQLAlchemy
+pymysql
+uvicorn
+cloudinary
+python-jose[cryptography]
+passlib[bcrypt]
+PyJWT
+replicate
+Pillow
