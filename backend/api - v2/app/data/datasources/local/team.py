@@ -1,3 +1,4 @@
+import json
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -200,11 +201,11 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
         existing_team = self.db.query(TeamModel).filter(
             TeamModel.id == team_id).first()
 
-        existing_user = self.db.query(UserModel).filter(
-            UserModel.id == existing_team.creator_id).first()
-
         if not existing_team:
             raise CacheException("Team does not exist")
+
+        existing_user = self.db.query(UserModel).filter(
+            UserModel.id == existing_team.creator_id).first()
 
         return TeamEntity(
             id=existing_team.id,

@@ -167,5 +167,9 @@ class MessageLocalDataSourceImpl(MessageLocalDataSource):
         existing_chat.messages = new_chat
 
         self.db.commit()
+        if message.isTeam:
+            url = f"https://sketch-dq5zwrwm5q-ww.a.run.app/api/teams/{chat_id}/chat"
+            requests.post(url, json={"message": message_from_user.to_dict()})
+            requests.post(url, json={"message": message_from_ai.to_dict()})
 
         return message_from_ai
