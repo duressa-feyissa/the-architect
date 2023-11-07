@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from uuid import uuid4
 
 import requests
 from app.data.datasources.remote.ai import AiGeneration
@@ -6,7 +7,6 @@ from app.domain.entities.free import Free, FreeEntity
 from cloudinary.uploader import upload
 from core.errors.exceptions import CacheException
 from sqlalchemy.orm import Session
-from uuid import uuid4
 
 
 class FreeLocalDataSource(ABC):

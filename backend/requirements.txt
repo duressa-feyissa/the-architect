@@ -12,3 +12,4 @@ PyJWT
 Pillow
 Pillow
 replicate
+requests

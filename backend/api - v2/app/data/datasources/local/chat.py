@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 from uuid import uuid4
-
 import requests
 from app.data.datasources.remote.ai import AiGeneration
 from app.data.models.chat import ChatModel
