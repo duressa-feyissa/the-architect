@@ -34,3 +34,5 @@ async def create_chat(
         return result.get()
     else:
         raise HTTPException(status_code=400, detail=result.get().error_message)
+    
+

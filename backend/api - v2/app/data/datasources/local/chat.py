@@ -33,10 +33,6 @@ class ChatLocalDataSource(ABC):
     async def delete_chat(self, chat_id: str) -> ChatEntity:
         ...
 
-    @abstractmethod
-    async def notify(self, chat_id: str, notify_id: str, notify: Notify) -> ChatEntity:
-        ...
-
 
 class ChatLocalDataSourceImpl(ChatLocalDataSource):
     def __init__(self, db: Session):

@@ -1,19 +1,24 @@
-from fastapi import HTTPException, APIRouter, Depends
 from typing import List, Optional
+
 from app.data.datasources.local.chat import ChatLocalDataSourceImpl
+from app.data.repositories.chat import ChatRepositoryImpl
 from app.domain.entities.message import Message
 from app.domain.entities.user import User
 from app.domain.repositories.chat import BaseRepository as ChatRepository
-from app.data.repositories.chat import ChatRepositoryImpl
-from app.domain.use_cases.chat.create import CreateChat, Params as CreateChatParams
-from app.domain.use_cases.chat.view import ViewChat, Params as ViewChatParams
-from app.domain.use_cases.chat.views import ViewChats, Params as ViewChatsParams
-from app.domain.use_cases.chat.delete import DeleteChat, Params as DeleteChatParams
-from app.domain.use_cases.chat.notify import Notify, Params as NotifyParams
+from app.domain.use_cases.chat.create import CreateChat
+from app.domain.use_cases.chat.create import Params as CreateChatParams
+from app.domain.use_cases.chat.delete import DeleteChat
+from app.domain.use_cases.chat.delete import Params as DeleteChatParams
+from app.domain.use_cases.chat.view import Params as ViewChatParams
+from app.domain.use_cases.chat.view import ViewChat
+from app.domain.use_cases.chat.views import Params as ViewChatsParams
+from app.domain.use_cases.chat.views import ViewChats
 from core.common.current_user import get_current_user
 from core.config.database_config import get_db
-from sqlalchemy.orm.session import Session
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm.session import Session
+
 
 class ChatResponse(BaseModel):
     id: Optional[str]
@@ -84,3 +89,4 @@ async def delete_chat(
         return result.get()
     else:
         raise HTTPException(status_code=400, detail=result.get().error_message)
+    

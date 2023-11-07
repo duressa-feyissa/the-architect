@@ -1,7 +1,8 @@
 from typing import Iterable
-from app.domain.entities.user import UserEntity
+
 from app.data.datasources.local.team import TeamLocalDataSource
 from app.domain.entities.team import Team, TeamEntity
+from app.domain.entities.user import UserEntity
 from app.domain.repositories.team import BaseRepository
 from core.common.either import Either
 from core.errors.exceptions import CacheException
@@ -65,6 +66,13 @@ class TeamRepositoryImpl(BaseRepository):
     async def team_members(self, team_id: str) -> Either[Failure, Iterable[UserEntity]]:
         try:
             team_entity = await self.team_local_datasource.team_members(team_id=team_id)
+            return Either.right(team_entity)
+        except CacheException as e:
+            return Either.left(CacheFailure(error_message=str(e)))
+        
+    async def add_team_member(self, team_id: str,creator_id: str, user_ids: Iterable[str]) -> Either[Failure, TeamEntity]:
+        try:
+            team_entity = await self.team_local_datasource.add_team_member(team_id, creator_id, user_ids)
             return Either.right(team_entity)
         except CacheException as e:
             return Either.left(CacheFailure(error_message=str(e)))

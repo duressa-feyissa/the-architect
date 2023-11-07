@@ -1,16 +1,22 @@
+import os
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import List
 from uuid import uuid4
 
 import requests
 from app.data.datasources.remote.ai import AiGeneration
+from app.data.models.chat import ChatModel
 from app.data.models.team import TeamModel, UserTeamModel
 from app.data.models.user import UserModel
+from app.domain.entities.message import Message, MessageEntity
 from app.domain.entities.team import Team, TeamEntity
 from app.domain.entities.user import UserEntity
 from cloudinary.uploader import upload
 from core.errors.exceptions import CacheException
 from sqlalchemy.orm import Session
+
+baseUrl = os.getenv("BASE_URL")
 
 
 class TeamLocalDataSource(ABC):
@@ -47,6 +53,13 @@ class TeamLocalDataSource(ABC):
     async def team_members(self, team_id: str) -> List[UserEntity]:
         ...
 
+    @abstractmethod
+    async def team_chat(self, message: Message, team_id: str):
+        ...
+        
+    @abstractmethod
+    async def add_team_member(self, team_id: str, creator_id: str, user_ids: List[str]) -> TeamEntity:
+        ...
 
 class TeamLocalDataSourceImpl(TeamLocalDataSource):
 
@@ -62,9 +75,9 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
 
         creator_first_name = existing_user.first_name
         creator_last_name = existing_user.last_name
-
+        _id = str(uuid4())
         _team = TeamModel(
-            id=str(uuid4()),
+            id=_id,
             creator_id=user_id,
             title=team.title,
             description=team.description,
@@ -77,6 +90,14 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
             team_id=_team.id
         )
 
+        chat = ChatModel(
+            id=_id,
+            user_id=user_id,
+            messages=[],
+            title=f'{creator_first_name} {creator_last_name} Team Chat',
+        )
+
+        self.db.add(chat)
         self.db.add(_teamUser)
         self.db.add(_team)
         self.db.commit()
@@ -302,3 +323,187 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
                 following=user.user.get_following_count(self.db)
             ) for user in user_teams
         ]
+        
+    async def team_chat(self, message: Message, chat_id: str) -> MessageEntity:
+        date = datetime.utcnow()
+        if 'prompt' not in message.payload:
+            raise CacheException("No prompt found")
+
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json"
+        }
+
+        existing_chat = self.db.query(ChatModel).filter(
+            ChatModel.id == chat_id).first()
+        if not existing_chat:
+            raise CacheException("Chat does not exist")
+
+        ai_generation = AiGeneration(requests, upload)
+        response = ""
+        userImage = ''
+        chatResponse = ''
+        analysis = {'title': '', 'detail': ''}
+        threeD = {}
+        aiMessageID = str(uuid4())
+
+        if message.model == 'text_to_image':
+            url = f"{baseUrl}/text-to-image"
+            try:
+                response = await ai_generation.get_image(url, headers, message.payload)
+            except:
+                raise CacheException("Error getting image")
+        elif message.model == 'image_to_image':
+            url = f"{baseUrl}/image-to-image"
+            try:
+                response = await ai_generation.get_image(url, headers, message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Error getting image")
+        elif message.model == 'controlNet':
+            url = f"{baseUrl}/controlnet"
+            try:
+                response = await ai_generation.get_image(url, headers, message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Error getting image")
+        elif message.model == 'painting':
+            url = f"{baseUrl}/inpaint"
+            try:
+                response = await ai_generation.get_image(url, headers, message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Error getting image")
+        elif message.model == 'instruction':
+            url = f"{baseUrl}/instruct"
+            try:
+                response = await ai_generation.get_image(url, headers, message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Error getting image")
+        elif message.model == 'image_variant':
+            try:
+                response = await ai_generation.image_variant(message.payload)
+            except:
+                raise CacheException("Error getting image from variant")
+        elif message.model == 'image_from_text':
+            try:
+                response = await ai_generation.create_from_text(message.payload)
+            except:
+                raise CacheException("Error getting image from text")
+        elif message.model == 'edit_image':
+            try:
+                response = await ai_generation.image_variant(message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Error getting image edit")
+        elif message.model == 'chatbot':
+            try:
+                chatResponse = await ai_generation.chatbot(message.payload)
+            except:
+                raise CacheException("Chatbot error")
+        elif message.model == 'analysis':
+            try:
+                analysis = await ai_generation.analysis(message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("Analysis error")
+        elif message.model == 'text_to_3D':
+            try:
+                threeD = await ai_generation.text_to_threeD(message.payload)
+            except:
+                raise CacheException("3D error from text")
+        elif message.model == 'image_to_3D':
+            try:
+                threeD = await ai_generation.image_to_threeD(message.payload)
+                userImage = await ai_generation.upload_image(message.payload['image'])
+            except:
+                raise CacheException("3D error")
+        else:
+            raise CacheException("Model not found")
+
+        message_from_user = MessageEntity(
+            id=str(uuid4()),
+            content={
+                'prompt': message.payload['prompt'],
+                'imageUser': userImage,
+                'imageAI': '',
+                'model': message.model,
+                'analysis': {},
+                '3D': {},
+                'chat': ''
+            },
+            sender='user',
+            date=date
+        )
+
+        new_chat = [i for i in existing_chat.messages]
+        new_chat.append(message_from_user.to_json())
+
+        message_from_ai = MessageEntity(
+            id=aiMessageID,
+            content={
+                'prompt': '',
+                'imageUser': '',
+                'imageAI': response,
+                'model': message.model,
+                'analysis': analysis,
+                '3D':  {'status': 'success', 'fetch_result': threeD},
+                'chat': chatResponse
+            },
+            sender='ai',
+            date=date
+        )
+        new_chat.append(message_from_ai.to_json())
+        existing_chat.messages = new_chat
+        self.db.commit()
+
+        return message_from_ai
+
+
+    async def add_team_member(self, team_id: str, creator_id: str, user_ids: List[str]) -> TeamEntity:
+        existing_team = self.db.query(TeamModel).filter(
+            TeamModel.id == team_id).first()
+
+        if not existing_team:
+            raise CacheException("Team does not exist")
+
+        creator = self.db.query(UserModel).filter(UserModel.id == existing_team.creator_id).first()
+        if creator_id != existing_team.creator_id:
+            raise CacheException("User is not the creator of the team")
+        
+        for user_id in user_ids:
+            existing_user = self.db.query(UserModel).filter(
+                UserModel.id == user_id).first()
+
+            if not existing_user:
+                raise CacheException(f"User {user_id} does not exist")
+
+            user_team_exists = self.db.query(UserTeamModel).filter(
+                UserTeamModel.user_id == user_id, UserTeamModel.team_id == team_id
+            ).first()
+
+            if user_team_exists:
+                continue
+
+            user_team = UserTeamModel(
+                id=str(uuid4()),
+                user_id=user_id,
+                team_id=team_id
+            )
+
+            self.db.add(user_team)
+
+        self.db.commit()
+
+        return TeamEntity(
+            id=existing_team.id,
+            title=existing_team.title,
+            description=existing_team.description,
+            creator_id=existing_team.creator_id,
+            creator_image=creator.image,
+            image=existing_team.image,
+            create_at=existing_team.date,
+            first_name=creator.first_name,
+            last_name=creator.last_name
+        )

@@ -29,6 +29,9 @@ class BaseWriteOnlyRepository(ContextManagerRepository):
     async def join_team(self, team_id: str, user_id: str) -> Either[Failure, TeamEntity]:
         ...
 
+    @abstractmethod
+    async def add_team_member(self, team_id: str,  creator_id: str, user_ids: Iterable[str]) -> Either[Failure, TeamEntity]:
+        ...
 
 class BaseReadOnlyRepository(ABC):
     @abstractmethod

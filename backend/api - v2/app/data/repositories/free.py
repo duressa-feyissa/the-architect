@@ -16,3 +16,4 @@ class FreeRepositoryImpl(BaseRepository):
             return Either.right(await self.free_local_datasource.free_chat(free))
         except CacheException as e:
             return Either.left(CacheFailure(error_message=str(e)))
+        

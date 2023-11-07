@@ -6,6 +6,8 @@ from app.data.repositories.team import TeamRepositoryImpl
 from app.domain.entities.team import Team
 from app.domain.entities.user import User
 from app.domain.repositories.team import BaseRepository as TeamRepository
+from app.domain.use_cases.team.add_member import AddTeamMember
+from app.domain.use_cases.team.add_member import Params as AddTeamMemberParams
 from app.domain.use_cases.team.create import CreateTeam
 from app.domain.use_cases.team.create import Params as CreateTeamParams
 from app.domain.use_cases.team.delete import DeleteTeam
@@ -44,6 +46,11 @@ class TeamResponse(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+class TeamRequest(BaseModel):
+    user_ids: Optional[list[str]]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 def get_repository(db: Session = Depends(get_db)):
     team_local_datasource = TeamLocalDataSourceImpl(db=db)
@@ -161,7 +168,7 @@ async def view_team(
         raise HTTPException(status_code=400, detail=result.get().error_message)
 
 
-@router.get("/teams/{team_id}/users", response_model=list[UserResponse])
+@router.get("/teams/{team_id}/members", response_model=list[UserResponse])
 async def team_members(
     team_id: str,
     repository: TeamRepository = Depends(get_repository),
@@ -170,6 +177,23 @@ async def team_members(
     team_members_use_case = TeamMembers(repository)
     params = TeamMembersParams(team_id=team_id)
     result = await team_members_use_case(params)
+    if result.is_right():
+        return result.get()
+    else:
+        raise HTTPException(status_code=400, detail=result.get().error_message)
+
+
+
+@router.post("/teams/{team_id}/add-users/", response_model=TeamResponse)
+async def add_team_member(
+    team_id: str,
+    users: TeamRequest,
+    repository: TeamRepository = Depends(get_repository),
+    current_user: User = Depends(get_current_user),
+):
+    add_team_member_use_case = AddTeamMember(repository)
+    params = AddTeamMemberParams(team_id=team_id, creator_id=current_user.id, user_ids=users.user_ids)
+    result = await add_team_member_use_case(params)
     if result.is_right():
         return result.get()
     else:

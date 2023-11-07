@@ -1,13 +1,13 @@
 import datetime
-import jwt
-from sqlalchemy.orm import Session
+import os
 from abc import ABC, abstractmethod
+
+import jwt
+from app.data.models.user import UserModel
 from app.domain.entities.auth import Auth, AuthEntity
 from core.common.password import verify_password
 from core.errors.exceptions import CacheException
-from app.data.models.user import UserModel
-import os
-
+from sqlalchemy.orm import Session
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
