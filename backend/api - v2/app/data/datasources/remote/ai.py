@@ -56,7 +56,7 @@ class AiGeneration:
             quality="standard",
             n=1,
         )
-        image_url = response["data"][0]["url"]
+        image_url = response.data[0].url
         image_data = requests.get(image_url).content
         upload_result = upload(image_data)
         if upload_result is None:
