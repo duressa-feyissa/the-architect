@@ -4,8 +4,8 @@ from app.data.datasources.local.free import FreeLocalDataSourceImpl
 from app.data.repositories.free import FreeRepositoryImpl
 from app.domain.entities.free import Free
 from app.domain.repositories.free import BaseRepository as FreeRepository
-from app.domain.use_cases.free import FreeChat
-from app.domain.use_cases.free import Params as FreeChatParams
+from app.domain.use_cases.free.chat import FreeChat
+from app.domain.use_cases.free.chat import Params as FreeChatParams
 from core.config.database_config import get_db
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
