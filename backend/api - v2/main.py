@@ -3,6 +3,7 @@ import os
 import uvicorn
 from app.presentation.auth import router as auth_router
 from app.presentation.chat import router as chat_router
+from app.presentation.free import router as free_router
 from app.presentation.message import router as message_router
 from app.presentation.post import router as post_router
 from app.presentation.team import router as team_router
@@ -29,6 +30,7 @@ app.include_router(post_router, prefix="/api/v1", tags=['post'])
 app.include_router(chat_router, prefix="/api/v1", tags=['chat'])
 app.include_router(team_router, prefix="/api/v1", tags=['team'])
 app.include_router(message_router, prefix="/api/v1", tags=['message'])
+app.include_router(free_router, prefix="/api/v1", tags=['free'])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=os.getenv("PORT", 8000))
