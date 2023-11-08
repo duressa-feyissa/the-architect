@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, List
 
 from app.data.datasources.local.team import TeamLocalDataSource
 from app.domain.entities.team import Team, TeamEntity
@@ -14,9 +14,9 @@ class TeamRepositoryImpl(BaseRepository):
     def __init__(self, team_local_datasource: TeamLocalDataSource):
         self.team_local_datasource = team_local_datasource
 
-    async def create_team(self, team: Team, user_id: str) -> Either[Failure, TeamEntity]:
+    async def create_team(self, team: Team, user_id: str, user_ids: List[str]) -> Either[Failure, TeamEntity]:
         try:
-            team_entity = await self.team_local_datasource.create_team(team, user_id)
+            team_entity = await self.team_local_datasource.create_team(team, user_id, user_ids)
             return Either.right(team_entity)
         except CacheException as e:
             return Either.left(CacheFailure(error_message=str(e)))

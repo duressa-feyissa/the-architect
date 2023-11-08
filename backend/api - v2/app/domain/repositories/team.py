@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, List
 
 from app.domain.entities.team import Team, TeamEntity
 from app.domain.entities.user import UserEntity
@@ -10,7 +10,7 @@ from core.errors.failure import Failure
 
 class BaseWriteOnlyRepository(ContextManagerRepository):
     @abstractmethod
-    async def create_team(self, team: Team, user_id: str) -> Either[Failure, TeamEntity]:
+    async def create_team(self, team: Team, user_id: str, user_ids: List[str]) -> Either[Failure, TeamEntity]:
         ...
 
     @abstractmethod
