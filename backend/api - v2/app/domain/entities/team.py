@@ -9,6 +9,7 @@ class Team(BaseModel):
     title: Optional[str]
     description: Optional[str]
     image: Optional[str]
+    user_ids: Optional[list[str]]
 
     class Config:
         arbitrary_types_allowed = True

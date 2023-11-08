@@ -67,7 +67,7 @@ async def create_team(
     current_user: User = Depends(get_current_user),
 ):
     create_team_use_case = CreateTeam(repository)
-    params = CreateTeamParams(team=team, user_id=current_user.id)
+    params = CreateTeamParams(team=team, user_id=current_user.id, user_ids=team.user_ids or [])
     result = await create_team_use_case(params)
     if result.is_right():
         return result.get()
