@@ -23,7 +23,7 @@ baseUrl = os.getenv("BASE_URL")
 class TeamLocalDataSource(ABC):
 
     @abstractmethod
-    async def create_team(self, team: Team, user_id: str) -> TeamEntity:
+    async def create_team(self, team: Team, user_id: str, user_ids: List[str]) -> TeamEntity:
         ...
 
     @abstractmethod
@@ -54,9 +54,7 @@ class TeamLocalDataSource(ABC):
     async def team_members(self, team_id: str) -> List[UserEntity]:
         ...
 
-    @abstractmethod
-    async def team_chat(self, message: Message, team_id: str):
-        ...
+
         
     @abstractmethod
     async def add_team_member(self, team_id: str, creator_id: str, user_ids: List[str]) -> TeamEntity:
@@ -68,7 +66,7 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
         self.db = db
         self.ai_generation = AiGeneration(request=requests, upload=upload)
 
-    async def create_team(self, team: Team, user_id: str) -> TeamEntity:
+    async def create_team(self, team: Team, user_id: str, user_ids: List[str]) -> TeamEntity:
         existing_user = self.db.query(UserModel).filter(
             UserModel.id == user_id).first()
         if not existing_user:
@@ -76,13 +74,17 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
 
         creator_first_name = existing_user.first_name
         creator_last_name = existing_user.last_name
+        image = ''
+        if team.image is not None and team.image != '' and len(team.image) > 1000:
+            image = await self.ai_generation.upload_image(team.image)
+
         _id = str(uuid4())
         _team = TeamModel(
             id=_id,
             creator_id=user_id,
             title=team.title,
             description=team.description,
-            image="https://i.pinimg.com/736x/6d/05/75/6d0575fb1f66c830cb71f07184cb2f94.jpg"
+            image=image
         )
 
         _teamUser = UserTeamModel(
@@ -103,6 +105,8 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
         self.db.add(_team)
         self.db.commit()
         self.db.refresh(_team)
+        
+        self.add_team_member(_team.id, user_id, user_ids)
 
         created_team = TeamEntity(
             id=_team.id,
@@ -114,6 +118,7 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
             first_name=creator_first_name,
             last_name=creator_last_name,
             create_at=_team.date
+            
         )
 
         return created_team
@@ -128,7 +133,7 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
 
         existing_team.title = team.title
         existing_team.description = team.description
-        if team.image is not None and team.image != '':
+        if team.image is not None and team.image != '' and len(team.image) > 1000:
             existing_team.image = await self.ai_generation.upload_image(team.image)
 
         existing_user = self.db.query(UserModel).filter(
@@ -324,143 +329,6 @@ class TeamLocalDataSourceImpl(TeamLocalDataSource):
                 following=user.user.get_following_count(self.db)
             ) for user in user_teams
         ]
-        
-    async def team_chat(self, message: Message, chat_id: str) -> MessageEntity:
-        date = datetime.utcnow()
-        if 'prompt' not in message.payload:
-            raise CacheException("No prompt found")
-
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json"
-        }
-
-        existing_chat = self.db.query(ChatModel).filter(
-            ChatModel.id == chat_id).first()
-        if not existing_chat:
-            raise CacheException("Chat does not exist")
-
-        ai_generation = AiGeneration(requests, upload)
-        response = ""
-        userImage = ''
-        chatResponse = ''
-        analysis = {'title': '', 'detail': ''}
-        threeD = {}
-        aiMessageID = str(uuid4())
-
-        if message.model == 'text_to_image':
-            url = f"{baseUrl}/text-to-image"
-            try:
-                response = await ai_generation.get_image(url, headers, message.payload)
-            except:
-                raise CacheException("Error getting image")
-        elif message.model == 'image_to_image':
-            url = f"{baseUrl}/image-to-image"
-            try:
-                response = await ai_generation.get_image(url, headers, message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Error getting image")
-        elif message.model == 'controlNet':
-            url = f"{baseUrl}/controlnet"
-            try:
-                response = await ai_generation.get_image(url, headers, message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Error getting image")
-        elif message.model == 'painting':
-            url = f"{baseUrl}/inpaint"
-            try:
-                response = await ai_generation.get_image(url, headers, message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Error getting image")
-        elif message.model == 'instruction':
-            url = f"{baseUrl}/instruct"
-            try:
-                response = await ai_generation.get_image(url, headers, message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Error getting image")
-        elif message.model == 'image_variant':
-            try:
-                response = await ai_generation.image_variant(message.payload)
-            except:
-                raise CacheException("Error getting image from variant")
-        elif message.model == 'image_from_text':
-            try:
-                response = await ai_generation.create_from_text(message.payload)
-            except:
-                raise CacheException("Error getting image from text")
-        elif message.model == 'edit_image':
-            try:
-                response = await ai_generation.image_variant(message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Error getting image edit")
-        elif message.model == 'chatbot':
-            try:
-                chatResponse = await ai_generation.chatbot(message.payload)
-            except:
-                raise CacheException("Chatbot error")
-        elif message.model == 'analysis':
-            try:
-                analysis = await ai_generation.analysis(message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("Analysis error")
-        elif message.model == 'text_to_3D':
-            try:
-                threeD = await ai_generation.text_to_threeD(message.payload)
-            except:
-                raise CacheException("3D error from text")
-        elif message.model == 'image_to_3D':
-            try:
-                threeD = await ai_generation.image_to_threeD(message.payload)
-                userImage = await ai_generation.upload_image(message.payload['image'])
-            except:
-                raise CacheException("3D error")
-        else:
-            raise CacheException("Model not found")
-
-        message_from_user = MessageEntity(
-            id=str(uuid4()),
-            content={
-                'prompt': message.payload['prompt'],
-                'imageUser': userImage,
-                'imageAI': '',
-                'model': message.model,
-                'analysis': {},
-                '3D': {},
-                'chat': ''
-            },
-            sender='user',
-            date=date
-        )
-
-        new_chat = [i for i in existing_chat.messages]
-        new_chat.append(message_from_user.to_json())
-
-        message_from_ai = MessageEntity(
-            id=aiMessageID,
-            content={
-                'prompt': '',
-                'imageUser': '',
-                'imageAI': response,
-                'model': message.model,
-                'analysis': analysis,
-                '3D':  {'status': 'success', 'fetch_result': threeD},
-                'chat': chatResponse
-            },
-            sender='ai',
-            date=date
-        )
-        new_chat.append(message_from_ai.to_json())
-        existing_chat.messages = new_chat
-        self.db.commit()
-
-        return message_from_ai
-
 
     async def add_team_member(self, team_id: str, creator_id: str, user_ids: List[str]) -> TeamEntity:
         existing_team = self.db.query(TeamModel).filter(
