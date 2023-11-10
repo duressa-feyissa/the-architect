@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ChatBuble from "../edit/chatBuble";
 import { PostDesign } from "../edit/PostDesign";
 import { initialMessage, models2 } from "../../../utils/constant";
@@ -14,9 +14,12 @@ import Download from "./download";
 import { AlertCircle, Eraser } from "lucide-react";
 import Alert from "@/components/alert";
 import Loader from "@/components/Loader";
+import { toast } from "react-toastify";
+import { Step, Step2 } from "@/components/steps";
 
 export default function Chat() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [image, setImage] = useState(searchParams.get("image") || "");
   const [drawing, setDrawing] = useState("");
   const [mask, setMask] = useState("");
@@ -69,6 +72,7 @@ export default function Chat() {
   const handleClick = async (img) => {
     setupload(false);
     setImage(img);
+    handleBase64(img);
   };
 
   const handleBase64 = async (img) => {
@@ -157,6 +161,11 @@ export default function Chat() {
 
     const userId = localStorage.getItem("userId");
     const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Invalid Credentials. Please Sign in Again.");
+      router.push("/auth/signin");
+      return;
+    }
 
     if (chatId != null)
       setUrl(
@@ -290,7 +299,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="h-[98%] sm:flex ">
+    <div className="h-[96%] sm:flex ">
       <div className="gap-2 w-full sm:w-1/2 min-h-[532px] flex flex-col justify-top items-center p-4">
         {model == "controlNet" ? (
           <ExcalidrawPage
@@ -317,7 +326,7 @@ export default function Chat() {
         ) : model == "text_to_image" ? (
           !image ? (
             <div className="h-[512px] flex items-center rounded-md border border-gray-600 w-[512px] justify-center ">
-              Explain it well
+              <Step />
             </div>
           ) : (
             <ImageZoom
@@ -357,7 +366,7 @@ export default function Chat() {
           </div>
         ) : model == "chatbot" ? (
           <div className="h-[512px] flex items-center rounded-md border border-gray-600 w-[512px] justify-center ">
-            Lets talk about Architecture
+            <Step2 />
           </div>
         ) : (
           <ImageZoom

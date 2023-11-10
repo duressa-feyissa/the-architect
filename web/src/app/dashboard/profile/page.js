@@ -3,17 +3,25 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Capitalize } from "@/utils/utils";
 import PostCard from "../designs/PostCard";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 export default function Profile() {
   const [posts, setPosts] = useState(null);
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(!open);
   const [user, setUser] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
       const userId = localStorage.getItem("userId");
+      if (!token) {
+        toast.error("Invalid Credentials. Please Sign in Again.");
+        router.push("/auth/signin");
+        return;
+      }
       try {
         const response = await fetch(
           `https://the-architect.onrender.com/api/v1/users/${userId}`,
@@ -163,6 +171,10 @@ export default function Profile() {
                   <span className="text-2xl"> {user?.following} </span>
                   <span className="font-bold"> following </span>
                 </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl"> {posts ? posts.length : 0} </span>
+                  <span className="font-bold"> Posts </span>
+                </div>
               </div>
             </div>
           </div>
@@ -176,7 +188,7 @@ export default function Profile() {
             </div>
           </div>
         </div>
-        <div className="md:flex-1 columns-2 sm:columns-2 md:columns-3 lg:columns-4 gap-3 space-y-4 p-4 justify-center bg-gray-3 border border-gray-2    rounded-xl">
+        <div className="md:flex-1 columns-2 sm:columns-2 md:columns-3 lg:columns-3 gap-3 space-y-4 p-4 justify-center bg-gray-3 border border-gray-2    rounded-xl">
           {!posts
             ? [1, 2, 3, 4, 5, 6, 7, 8].map((item, index) => (
                 <div
